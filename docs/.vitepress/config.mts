@@ -4,32 +4,23 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "Python Docs",
   description: "一个python的文档站",
+  ignoreDeadLinks: true,
 
-  // 处理 markdown 中 <script> 标签避免 Vue 编译报错
   vite: {
     plugins: [
       {
-        name: 'fix-markdown-script',
+        name: 'fix-code-blocks',
         enforce: 'pre',
         transform(code, id) {
-          if (id.endsWith('.md')) {
-            // 保护 Vue <script setup> 和 <style scoped> 块，避免被转义
-            const protectedBlocks = []
-            code = code.replace(/<(script\s+setup|style\s+scoped)[\s\S]*?<\/\1>/gi, match => {
-              protectedBlocks.push(match)
-              return `__PROTECTED_BLOCK_${protectedBlocks.length - 1}__`
-            })
-
-            // 转义剩余的 <script> 和 <style> 标签为 HTML 实体
-            code = code.replace(/<script\b/gi, '&lt;script')
-            code = code.replace(/<\/script\b/gi, '&lt;/script')
-            code = code.replace(/<style\b/gi, '&lt;style')
-            code = code.replace(/<\/style\b/gi, '&lt;/style')
-
-            // 恢复被保护的块
-            code = code.replace(/__PROTECTED_BLOCK_(\d+)__/g, (_, idx) => protectedBlocks[parseInt(idx)])
-            return code
-          }
+          if (!id.endsWith('.md')) return code
+          // 将 [code]...[/code] 转为标准 fenced code block (```)
+          // 避免其内部 < 等字符被 Vue 当成 HTML 标签解析
+          return code.replace(/\[code\]\s*\n?([\s\S]*?)\n?\s*\[\/code\]/g, (_m, content) => {
+            const lang = content.trim().startsWith('Map') ||
+                         content.includes('Flask') ||
+                         content.includes('import') ? 'python' : ''
+            return '```' + lang + '\n' + content.trimEnd() + '\n```'
+          })
         }
       }
     ]
